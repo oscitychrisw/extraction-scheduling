@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -683,24 +685,28 @@ function BackendPage() {
   );
 }
 
-function EmployeeCard({ employee, onDragStart, onDragEnd }) {
+function EmployeeCard({ employee, onDragStart, onDragEnd, onSelect, isSelected }) {
   return (
     <div
       draggable
       onDragStart={(event) => onDragStart(event, employee.id)}
       onDragEnd={onDragEnd}
-      className="max-w-[260px] cursor-grab select-none rounded-xl border-2 border-slate-200 bg-white p-2 shadow-sm transition hover:border-slate-400 hover:shadow-md active:cursor-grabbing"
+      onClick={() => onSelect(employee.id)}
+      className={`max-w-[260px] cursor-grab select-none rounded-xl border-2 bg-white p-2 shadow-sm transition hover:border-slate-400 hover:shadow-md active:cursor-grabbing ${
+        isSelected ? "border-emerald-500 ring-2 ring-emerald-200" : "border-slate-200"
+      }`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="text-xs font-semibold text-slate-900">{employee.name}</div>
         <div className="rounded-full bg-slate-900 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white">Drag</div>
       </div>
       <div className="mt-1 line-clamp-2 text-[10px] text-slate-500">{employee.notes}</div>
+      {isSelected && <div className="mt-1 text-[9px] font-semibold text-emerald-700">Assign mode armed</div>}
     </div>
   );
 }
 
-function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlot, isValidDraggedEmployee }) {
+function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlot, isValidDraggedEmployee, armedEmployee, onClickAssign, isValidArmedEmployee }) {
   return (
     <div
       onDragOver={(event) => {
@@ -711,12 +717,17 @@ function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlo
         const employeeId = event.dataTransfer.getData("text/plain");
         if (employeeId) onDropEmployee(day, shiftId, slot.id, employeeId);
       }}
+      onClick={() => {
+        if (armedEmployee && isValidArmedEmployee) onClickAssign(day, shiftId, slot.id);
+      }}
       className={`min-h-[60px] rounded-md border border-dashed p-1 transition ${
         isValidDraggedEmployee === false
           ? "border-red-300 bg-red-50"
           : isValidDraggedEmployee === true
             ? "border-emerald-400 bg-emerald-50"
-            : "border-slate-300 bg-slate-50"
+            : armedEmployee && isValidArmedEmployee
+              ? "cursor-pointer border-blue-400 bg-blue-50"
+              : "border-slate-300 bg-slate-50"
       }`}
     >
       <div className="flex items-center justify-between gap-1">
@@ -725,7 +736,10 @@ function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlo
         </div>
         {assignedEmployee && (
           <button
-            onClick={() => onClearSlot(day, shiftId, slot.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onClearSlot(day, shiftId, slot.id);
+            }}
             className="text-[9px] text-slate-500 hover:text-red-600"
           >
             ×
@@ -738,7 +752,9 @@ function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlo
             <div className="truncate text-[10px] font-semibold text-slate-900">{assignedEmployee.name}</div>
           </div>
         ) : (
-          <div className="rounded border bg-white/70 px-1.5 py-1 text-[10px] text-slate-400">Drop</div>
+          <div className="rounded border bg-white/70 px-1.5 py-1 text-[10px] text-slate-400">
+            {armedEmployee && isValidArmedEmployee ? `Assign ${armedEmployee.name}` : "Drop"}
+          </div>
         )}
       </div>
     </div>
@@ -765,7 +781,7 @@ function MultiSelectChips({ options, selected, onToggle }) {
   );
 }
 
-function PlannerPage({ employees, assignments, employeeMap, draggedEmployee, setCurrentPage, setDraggedEmployeeId, handleDropEmployee, clearSlot }) {
+function PlannerPage({ employees, assignments, employeeMap, draggedEmployee, selectedEmployee, setSelectedEmployeeId, setCurrentPage, setDraggedEmployeeId, handleDropEmployee, handleClickAssign, clearSlot }) {
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
       <div className="min-w-0">
@@ -773,15 +789,21 @@ function PlannerPage({ employees, assignments, employeeMap, draggedEmployee, set
           <CardHeader><CardTitle className="text-lg">Drag Employees</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-3 rounded-2xl border-2 border-slate-300 bg-slate-50 p-3">
+              <div className="rounded-xl border bg-white p-2 text-[11px] text-slate-600">
+                Drag for single placement, or click an employee once to arm multi-assign mode and then click valid cells.
+              </div>
               <div className="flex items-center gap-2 text-base font-semibold text-slate-900"><Users className="h-4 w-4" /> Drag Employees</div>
               <Button variant="outline" onClick={() => setCurrentPage("employees")} className="w-full rounded-2xl"><Settings className="mr-2 h-4 w-4" />Employee Management</Button>
               <Button variant="outline" onClick={() => setCurrentPage("info")} className="w-full rounded-2xl"><ShieldAlert className="mr-2 h-4 w-4" />Shift Information</Button>
+              {selectedEmployee && <Button variant="secondary" onClick={() => setSelectedEmployeeId(null)} className="w-full rounded-2xl">Clear Assign Mode: {selectedEmployee.name}</Button>}
               <div className="max-h-[82vh] min-h-[760px] overflow-y-auto pr-2">
                 <div className="grid justify-start gap-1.5">
                   {employees.map((employee) => (
                     <EmployeeCard
                       key={employee.id}
                       employee={employee}
+                      isSelected={selectedEmployee?.id === employee.id}
+                      onSelect={setSelectedEmployeeId}
                       onDragStart={(event, id) => {
                         setDraggedEmployeeId(id);
                         event.dataTransfer.setData("text/plain", id);
@@ -831,9 +853,16 @@ function PlannerPage({ employees, assignments, employeeMap, draggedEmployee, set
                               assignedEmployee={employeeMap[assignments[day][shift.id][slot.id]]}
                               onDropEmployee={handleDropEmployee}
                               onClearSlot={clearSlot}
+                              armedEmployee={selectedEmployee}
+                              onClickAssign={handleClickAssign}
                               isValidDraggedEmployee={
                                 draggedEmployee
                                   ? canAssignEmployee(assignments, draggedEmployee, day, shift.id, slot.id, slot.role)
+                                  : null
+                              }
+                              isValidArmedEmployee={
+                                selectedEmployee
+                                  ? canAssignEmployee(assignments, selectedEmployee, day, shift.id, slot.id, slot.role)
                                   : null
                               }
                             />
@@ -950,6 +979,7 @@ export default function ProcessingTeamScheduler() {
   const [employees, setEmployees] = useState(seedEmployees);
   const [assignments, setAssignments] = useState(() => buildInitialAssignments(seedEmployees));
   const [draggedEmployeeId, setDraggedEmployeeId] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [newEmployee, setNewEmployee] = useState({ name: "", competencies: [], shifts: [], notes: "" });
   const [saveMessage, setSaveMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -961,6 +991,7 @@ export default function ProcessingTeamScheduler() {
   const employeeMap = useMemo(() => employeeByIdMap(employees), [employees]);
   const warnings = useMemo(() => getAssignmentWarnings(assignments, employees), [assignments, employees]);
   const draggedEmployee = useMemo(() => (draggedEmployeeId ? employeeMap[draggedEmployeeId] : null), [draggedEmployeeId, employeeMap]);
+  const selectedEmployee = useMemo(() => (selectedEmployeeId ? employeeMap[selectedEmployeeId] : null), [selectedEmployeeId, employeeMap]);
   const availableEmployeesByShift = useMemo(() => SHIFTS.reduce((accumulator, shift) => {
     accumulator[shift.id] = employees.filter((employee) => employee.shifts.includes(shift.id));
     return accumulator;
@@ -1035,6 +1066,24 @@ export default function ProcessingTeamScheduler() {
         [shiftId]: {
           ...previous[day][shiftId],
           [slotId]: null,
+        },
+      },
+    }));
+  }
+
+  function handleClickAssign(day, shiftId, slotId) {
+    const employee = selectedEmployeeId ? employeeMap[selectedEmployeeId] : null;
+    const slot = SLOT_TEMPLATE.find((item) => item.id === slotId);
+    if (!employee || !slot) return;
+    if (!canAssignEmployee(assignments, employee, day, shiftId, slotId, slot.role)) return;
+
+    setAssignments((previous) => ({
+      ...previous,
+      [day]: {
+        ...previous[day],
+        [shiftId]: {
+          ...previous[day][shiftId],
+          [slotId]: employee.id,
         },
       },
     }));
@@ -1174,7 +1223,7 @@ export default function ProcessingTeamScheduler() {
           </CardHeader>
         </Card>
 
-        {currentPage === "scheduler" && <PlannerPage employees={employees} assignments={assignments} employeeMap={employeeMap} draggedEmployee={draggedEmployee} setCurrentPage={setCurrentPage} setDraggedEmployeeId={setDraggedEmployeeId} handleDropEmployee={handleDropEmployee} clearSlot={clearSlot} />}
+        {currentPage === "scheduler" && <PlannerPage employees={employees} assignments={assignments} employeeMap={employeeMap} draggedEmployee={draggedEmployee} selectedEmployee={selectedEmployee} setSelectedEmployeeId={setSelectedEmployeeId} setCurrentPage={setCurrentPage} setDraggedEmployeeId={setDraggedEmployeeId} handleDropEmployee={handleDropEmployee} handleClickAssign={handleClickAssign} clearSlot={clearSlot} />}
         {currentPage === "info" && <InfoPage warnings={warnings} availableEmployeesByShift={availableEmployeesByShift} setCurrentPage={setCurrentPage} scheduleStatus={scheduleStatus} />}
         {currentPage === "employees" && <EmployeeManagementPage employees={employees} newEmployee={newEmployee} setNewEmployee={setNewEmployee} toggleNewEmployeeValue={toggleNewEmployeeValue} addEmployee={addEmployee} updateEmployee={updateEmployee} toggleEmployeeValue={toggleEmployeeValue} setCurrentPage={setCurrentPage} persistEmployeeUpdate={persistEmployeeUpdate} persistEmployeeDelete={persistEmployeeDelete} employeeActionState={employeeActionState} />}
         {currentPage === "backend" && <BackendPage />}
