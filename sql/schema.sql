@@ -1,0 +1,4 @@
+CREATE TABLE Employees (
+  EmployeeId UNIQUEIDENTIFIER PRIMARY KEY,
+  Name NVARCHAR(200)
+);
