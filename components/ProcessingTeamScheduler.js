@@ -701,7 +701,6 @@ function EmployeeCard({ employee, onDragStart, onDragEnd }) {
 }
 
 function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlot, isValidDraggedEmployee }) {
-{ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlot, isValidDraggedEmployee }) {
   return (
     <div
       onDragOver={(event) => {
@@ -712,24 +711,34 @@ function Slot({ slot, day, shiftId, assignedEmployee, onDropEmployee, onClearSlo
         const employeeId = event.dataTransfer.getData("text/plain");
         if (employeeId) onDropEmployee(day, shiftId, slot.id, employeeId);
       }}
-      className={`min-h-[88px] rounded-xl border border-dashed p-2 transition ${
-        isValidDraggedEmployee === false ? "border-red-300 bg-red-50" : isValidDraggedEmployee === true ? "border-emerald-400 bg-emerald-50" : "border-slate-300 bg-slate-50"
+      className={`min-h-[60px] rounded-md border border-dashed p-1 transition ${
+        isValidDraggedEmployee === false
+          ? "border-red-300 bg-red-50"
+          : isValidDraggedEmployee === true
+            ? "border-emerald-400 bg-emerald-50"
+            : "border-slate-300 bg-slate-50"
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <div className="text-xs font-semibold text-slate-800">{slot.label}</div>
-          <div className="text-[10px] text-slate-500">Requires: {slot.role}</div>
+      <div className="flex items-center justify-between gap-1">
+        <div className="min-w-0">
+          <div className="truncate text-[10px] font-medium text-slate-800">{slot.label}</div>
         </div>
-        {assignedEmployee && <button onClick={() => onClearSlot(day, shiftId, slot.id)} className="text-[10px] text-slate-500 hover:text-red-600">Clear</button>}
+        {assignedEmployee && (
+          <button
+            onClick={() => onClearSlot(day, shiftId, slot.id)}
+            className="text-[9px] text-slate-500 hover:text-red-600"
+          >
+            ×
+          </button>
+        )}
       </div>
-      <div className="mt-2">
+      <div className="mt-1">
         {assignedEmployee ? (
-          <div className="rounded-lg border bg-white p-2 shadow-sm">
-            <div className="text-xs font-semibold text-slate-900">{assignedEmployee.name}</div>
+          <div className="rounded border bg-white px-1.5 py-1 shadow-sm">
+            <div className="truncate text-[10px] font-semibold text-slate-900">{assignedEmployee.name}</div>
           </div>
         ) : (
-          <div className="rounded-lg border bg-white/70 p-2 text-[11px] text-slate-400">Drag an employee here</div>
+          <div className="rounded border bg-white/70 px-1.5 py-1 text-[10px] text-slate-400">Drop</div>
         )}
       </div>
     </div>
@@ -756,12 +765,102 @@ function MultiSelectChips({ options, selected, onToggle }) {
   );
 }
 
-function SchedulerPage({ employees, assignments, employeeMap, draggedEmployee, warnings, availableEmployeesByShift, setCurrentPage, setDraggedEmployeeId, handleDropEmployee, clearSlot, scheduleStatus }) {
+function PlannerPage({ employees, assignments, employeeMap, draggedEmployee, setCurrentPage, setDraggedEmployeeId, handleDropEmployee, clearSlot }) {
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <Card className="rounded-3xl border-0 shadow-lg">
+          <CardHeader><CardTitle className="text-lg">Drag Employees</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-3 rounded-2xl border-2 border-slate-300 bg-slate-50 p-3">
+              <div className="flex items-center gap-2 text-base font-semibold text-slate-900"><Users className="h-4 w-4" /> Drag Employees</div>
+              <Button variant="outline" onClick={() => setCurrentPage("employees")} className="w-full rounded-2xl"><Settings className="mr-2 h-4 w-4" />Employee Management</Button>
+              <Button variant="outline" onClick={() => setCurrentPage("info")} className="w-full rounded-2xl"><ShieldAlert className="mr-2 h-4 w-4" />Shift Information</Button>
+              <div className="max-h-[82vh] min-h-[760px] overflow-y-auto pr-2">
+                <div className="grid justify-start gap-1.5">
+                  {employees.map((employee) => (
+                    <EmployeeCard
+                      key={employee.id}
+                      employee={employee}
+                      onDragStart={(event, id) => {
+                        setDraggedEmployeeId(id);
+                        event.dataTransfer.setData("text/plain", id);
+                      }}
+                      onDragEnd={() => setDraggedEmployeeId(null)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="min-w-0">
+        <Card className="rounded-3xl border-0 shadow-lg">
+          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><CalendarDays className="h-5 w-5" /> Weekly Shift Planner</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-2xl border border-slate-300 bg-white p-2">
+              <div className="min-w-[1380px] border border-slate-300 bg-white">
+                <div className="grid" style={{ gridTemplateColumns: `150px repeat(${DAYS.length * SHIFTS.length}, minmax(128px, 1fr))` }}>
+                  <div className="sticky left-0 z-20 border-b border-r border-slate-300 bg-slate-800 px-2 py-1.5 text-[11px] font-semibold text-white">Role / Slot</div>
+                  {DAYS.flatMap((day) =>
+                    SHIFTS.map((shift) => (
+                      <div key={`${day}-${shift.id}-header`} className="border-b border-r border-slate-300 bg-slate-800 px-2 py-1 text-white">
+                        <div className="text-[11px] font-semibold leading-tight">{day}</div>
+                        <div className="text-[9px] leading-tight text-slate-200">{shift.id}</div>
+                        <div className="text-[9px] leading-tight text-slate-300">{shift.time}</div>
+                      </div>
+                    ))
+                  )}
+                  {SLOT_TEMPLATE.map((slot) => (
+                    <React.Fragment key={slot.id}>
+                      <div className="sticky left-0 z-10 flex min-h-[68px] items-center border-b border-r border-slate-300 bg-slate-50 px-2 py-1">
+                        <div>
+                          <div className="text-[11px] font-semibold leading-tight text-slate-900">{slot.label}</div>
+                          <div className="text-[9px] leading-tight text-slate-500">{slot.role}</div>
+                        </div>
+                      </div>
+                      {DAYS.flatMap((day) =>
+                        SHIFTS.map((shift) => (
+                          <div key={`${slot.id}-${day}-${shift.id}`} className="border-b border-r border-slate-300 bg-white p-0.5">
+                            <Slot
+                              slot={slot}
+                              day={day}
+                              shiftId={shift.id}
+                              assignedEmployee={employeeMap[assignments[day][shift.id][slot.id]]}
+                              onDropEmployee={handleDropEmployee}
+                              onClearSlot={clearSlot}
+                              isValidDraggedEmployee={
+                                draggedEmployee
+                                  ? canAssignEmployee(assignments, draggedEmployee, day, shift.id, slot.id, slot.role)
+                                  : null
+                              }
+                            />
+                          </div>
+                        ))
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function InfoPage({ warnings, availableEmployeesByShift, setCurrentPage, scheduleStatus }) {
   return (
     <div className="space-y-6">
       <Card className="rounded-3xl border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl">Shift Information & Coverage Rules</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="text-xl">Shift Information & Coverage Rules</CardTitle>
+            <Button variant="outline" onClick={() => setCurrentPage("scheduler")} className="rounded-2xl"><CalendarDays className="mr-2 h-4 w-4" />Back to Planner</Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-600"><Cloud className="h-4 w-4" /><span>{scheduleStatus}</span></div>
@@ -790,7 +889,7 @@ function SchedulerPage({ employees, assignments, employeeMap, draggedEmployee, w
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-900">Invalid drops are blocked for missing competency, wrong shift availability, duplicate assignment in the same shift, and multiple assignments for one operator in the same 24-hour operating period.</div>
               <div className="rounded-2xl border bg-slate-50 p-3">
                 <div className="mb-2 font-semibold">Current warnings</div>
-                <ul className="max-h-48 space-y-1 overflow-auto text-sm">
+                <ul className="max-h-64 space-y-1 overflow-auto text-sm">
                   {warnings.length ? warnings.map((warning, index) => <li key={index}>• {warning}</li>) : <li>No issues found.</li>}
                 </ul>
               </div>
@@ -798,81 +897,6 @@ function SchedulerPage({ employees, assignments, employeeMap, draggedEmployee, w
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="min-w-0">
-          <Card className="rounded-3xl border-0 shadow-lg">
-            <CardHeader><CardTitle className="text-xl">Drag Employees</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-4 rounded-2xl border-2 border-slate-300 bg-slate-50 p-4">
-                <div className="flex items-center gap-2 text-lg font-semibold text-slate-900"><Users className="h-5 w-5" /> Drag Employees From Here</div>
-                <p className="text-sm text-slate-600">Click and drag an employee card from this list into an open scheduler slot on the right.</p>
-                <Button variant="outline" onClick={() => setCurrentPage("employees")} className="w-full rounded-2xl"><Settings className="mr-2 h-4 w-4" />Go to Employee Management</Button>
-                <div className="max-h-[82vh] min-h-[760px] overflow-y-auto pr-2">
-                  <div className="grid justify-start gap-2">
-                    {employees.map((employee) => (
-                      <EmployeeCard
-                        key={employee.id}
-                        employee={employee}
-                        onDragStart={(event, id) => {
-                          setDraggedEmployeeId(id);
-                          event.dataTransfer.setData("text/plain", id);
-                        }}
-                        onDragEnd={() => setDraggedEmployeeId(null)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="min-w-0">
-          <Card className="rounded-3xl border-0 shadow-lg">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-xl"><CalendarDays className="h-5 w-5" /> Weekly Shift Planner</CardTitle></CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <div className="min-w-[1500px] rounded-2xl border bg-white">
-                  <div className="grid" style={{ gridTemplateColumns: `180px repeat(${DAYS.length * SHIFTS.length}, minmax(150px, 1fr))` }}>
-                    <div className="sticky left-0 z-20 border-b border-r bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Role / Slot</div>
-                    {DAYS.flatMap((day) => SHIFTS.map((shift) => (
-                      <div key={`${day}-${shift.id}-header`} className="border-b border-r bg-slate-900 px-2.5 py-2 text-white">
-                        <div className="text-xs font-semibold leading-tight">{day}</div>
-                        <div className="text-[10px] leading-tight text-slate-200">{shift.label}</div>
-                        <div className="text-[10px] leading-tight text-slate-300">{shift.time}</div>
-                      </div>
-                    )))}
-                    {SLOT_TEMPLATE.map((slot) => (
-                      <React.Fragment key={slot.id}>
-                        <div className="sticky left-0 z-10 flex min-h-[88px] items-center border-b border-r bg-slate-50 px-3 py-2">
-                          <div>
-                            <div className="text-xs font-semibold text-slate-900 leading-tight">{slot.label}</div>
-                            <div className="text-[10px] text-slate-500 leading-tight">Requires: {slot.role}</div>
-                          </div>
-                        </div>
-                        {DAYS.flatMap((day) => SHIFTS.map((shift) => (
-                          <div key={`${slot.id}-${day}-${shift.id}`} className="border-b border-r bg-white p-1">
-                            <Slot
-                              slot={slot}
-                              day={day}
-                              shiftId={shift.id}
-                              assignedEmployee={employeeMap[assignments[day][shift.id][slot.id]]}
-                              onDropEmployee={handleDropEmployee}
-                              onClearSlot={clearSlot}
-                              isValidDraggedEmployee={draggedEmployee ? canAssignEmployee(assignments, draggedEmployee, day, shift.id, slot.id, slot.role) : null}
-                            />
-                          </div>
-                        )))}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1150,7 +1174,8 @@ export default function ProcessingTeamScheduler() {
           </CardHeader>
         </Card>
 
-        {currentPage === "scheduler" && <SchedulerPage employees={employees} assignments={assignments} employeeMap={employeeMap} draggedEmployee={draggedEmployee} warnings={warnings} availableEmployeesByShift={availableEmployeesByShift} setCurrentPage={setCurrentPage} setDraggedEmployeeId={setDraggedEmployeeId} handleDropEmployee={handleDropEmployee} clearSlot={clearSlot} scheduleStatus={scheduleStatus} />}
+        {currentPage === "scheduler" && <PlannerPage employees={employees} assignments={assignments} employeeMap={employeeMap} draggedEmployee={draggedEmployee} setCurrentPage={setCurrentPage} setDraggedEmployeeId={setDraggedEmployeeId} handleDropEmployee={handleDropEmployee} clearSlot={clearSlot} />}
+        {currentPage === "info" && <InfoPage warnings={warnings} availableEmployeesByShift={availableEmployeesByShift} setCurrentPage={setCurrentPage} scheduleStatus={scheduleStatus} />}
         {currentPage === "employees" && <EmployeeManagementPage employees={employees} newEmployee={newEmployee} setNewEmployee={setNewEmployee} toggleNewEmployeeValue={toggleNewEmployeeValue} addEmployee={addEmployee} updateEmployee={updateEmployee} toggleEmployeeValue={toggleEmployeeValue} setCurrentPage={setCurrentPage} persistEmployeeUpdate={persistEmployeeUpdate} persistEmployeeDelete={persistEmployeeDelete} employeeActionState={employeeActionState} />}
         {currentPage === "backend" && <BackendPage />}
       </div>
