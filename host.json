@@ -1,0 +1,35 @@
+import { app } from "@azure/functions";
+import { getSchedule, saveSchedule } from "../shared/repository.js";
+import { scheduleSchema } from "../shared/validation.js";
+import { errorResponse, json } from "../shared/http.js";
+
+app.http("getSchedule", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "schedules/{weekKey}",
+  handler: async (request) => {
+    try {
+      const weekKey = request.params.weekKey || "current";
+      const assignments = await getSchedule(weekKey);
+      return json(200, { weekKey, assignments });
+    } catch (error) {
+      return errorResponse(error);
+    }
+  },
+});
+
+app.http("saveSchedule", {
+  methods: ["PUT"],
+  authLevel: "anonymous",
+  route: "schedules/{weekKey}",
+  handler: async (request) => {
+    try {
+      const payload = scheduleSchema.parse(await request.json());
+      const weekKey = request.params.weekKey || payload.weekKey;
+      const assignments = await saveSchedule(weekKey, payload.assignments, "azure-user");
+      return json(200, { weekKey, assignments });
+    } catch (error) {
+      return errorResponse(error, 400);
+    }
+  },
+});
