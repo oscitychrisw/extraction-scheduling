@@ -166,6 +166,25 @@ function PlannerPage({ employees, assignments, setAssignments }) {
     window.setTimeout(() => setDropMessage(""), 2500);
   }
 
+  function copyMondayToRestOfWeek() {
+    const mondaySchedule = assignments?.Mon;
+    if (!mondaySchedule) {
+      flashDropMessage("No Monday schedule exists to copy.");
+      return;
+    }
+
+    setAssignments((prev) => {
+      const next = { ...prev };
+      for (const day of DAYS) {
+        if (day === "Mon") continue;
+        next[day] = JSON.parse(JSON.stringify(mondaySchedule));
+      }
+      return next;
+    });
+
+    flashDropMessage("Monday schedule copied to Tuesday through Friday.");
+  }
+
   function handleDrop(day, shift, role, empId) {
     const employee = employeeMap[empId];
     const roleInfo = getRole(role);
@@ -204,6 +223,7 @@ function PlannerPage({ employees, assignments, setAssignments }) {
       <div className="w-1/4 max-h-[85vh] overflow-y-auto rounded-xl border bg-slate-50 p-3">
         <h2 className="mb-2 text-lg font-bold">Employees</h2>
         <p className="mb-3 text-xs text-slate-600">Drag employees into valid planner cells. Invalid competency/shift drops are blocked.</p>
+        <button onClick={copyMondayToRestOfWeek} className="mb-3 w-full rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">Copy Monday to Tue–Fri</button>
         {dropMessage && <div className="mb-3 rounded border border-red-200 bg-red-50 p-2 text-xs font-semibold text-red-700">{dropMessage}</div>}
         {employees.map((emp) => (
           <div
